@@ -50,6 +50,8 @@ pub fn check_core_dirs(file_creation: bool) -> Result<(), &'static str> {
     Ok(())
 }
 
+// It returns a list of directories that are valid to contain api files.
+// TODO: check for subfolders inside ./core/version
 #[instrument]
 pub fn check_api_ver_dir() -> Result<Vec<File>, String> {
     let api_ver_path = "./core/version/";
@@ -125,6 +127,24 @@ pub fn check_api_ver_dir() -> Result<Vec<File>, String> {
             " The directory '{}' is empty or doesn't have any valid path.",
             api_ver_path
         ))
+    }
+}
+
+pub fn check_api_files(dir_path: Vec<File>) {
+    // Go through every valid API dir
+    for n_dir in dir_path {
+        // Make sure we can actually access the files inside the folder.
+        let file_list = match fs::read_dir(&n_dir.path) {
+            Ok(f_list) => f_list,
+            Err(err_msg) => {
+                warn!(
+                    " The directory {} is not accessible. {}",
+                    n_dir.path.display(),
+                    err_msg
+                );
+                continue;
+            }
+        };
     }
 }
 
