@@ -130,8 +130,10 @@ pub fn check_api_ver_dir() -> Result<Vec<File>, String> {
     }
 }
 
-pub fn check_api_files(dir_path: Vec<File>) {
-    // Go through every valid API dir
+pub fn check_api_files(dir_path: Vec<File>) -> Result<Vec<File>, String> {
+    let mut valid_files: Vec<File> = Vec::new();
+
+    // Go through every valid API directory
     for n_dir in dir_path {
         // Make sure we can actually access the files inside the folder.
         let file_list = match fs::read_dir(&n_dir.path) {
@@ -145,7 +147,60 @@ pub fn check_api_files(dir_path: Vec<File>) {
                 continue;
             }
         };
+
+        // Check each file in the directory
+        for n_file in file_list {
+            trace!("{:?}", n_file);
+
+            // Make sure i can read the file's metadata
+            let current_file = match n_file {
+                Ok(dir_entry) => {
+                    if let Ok(metadata) = dir_entry.metadata() {
+                        File::new(dir_entry.file_name(), dir_entry.path(), metadata)
+                    } else {
+                        warn!(
+                            " Metadata of file {} can't be read it",
+                            dir_entry.file_name().to_string_lossy()
+                        );
+                        continue;
+                    }
+                }
+                Err(err_msg) => {
+                    warn!(" {} ", err_msg);
+                    continue;
+                }
+            };
+
+            // Only check if it is a file
+            if current_file.metadata.is_file() {
+                // Get the file's extension
+                let file_ext = match current_file.name.split('.').last() {
+                    Some(ext) => ext,
+                    None => {
+                        warn!("file '{}' has no extension", current_file.name);
+                        continue;
+                    }
+                };
+
+                // For now, just check if the file is toml
+                if file_ext == "toml" {
+                    valid_files.push(current_file);
+                } else {
+                    warn!(
+                        "file '{}' does not have a valid extension",
+                        current_file.name
+                    );
+                }
+            }
+        }
     }
+
+    if valid_files.is_empty() {
+        error!("No API files were found.");
+        return Err("No API files were found".to_string());
+    }
+
+    Ok(valid_files)
 }
 
 pub struct File {
